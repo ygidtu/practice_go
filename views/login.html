@@ -1,0 +1,31 @@
+
+<br>
+{{ if .Error }}
+<div class="alert alert-dismissible alert-danger">
+    <button type="button" class="close" data-dismiss="alert">&times;</button>
+    <strong>Oh snap!</strong> <a href="#" class="alert-link">Change a few things up</a> and try submitting again.
+</div>
+{{ end }}
+
+<form action="/login" method="post">
+{{ .xsrfdata }}
+    <div class="col-12">
+        <div class="form-group">
+            <label for="username" class="form-label">Username</label>
+            <input type="text" class="form-control" id="username" name="username" value="username">
+        </div>
+    </div>
+    <div class="col-12">
+        <div class="form-group {{if .Error}}has-danger{{ end }}">
+            <label for="passwd">Password</label>
+            <input type="password" class="form-control" id="passwd" name="passwd" placeholder="Password">
+        {{ if .Error }}
+            <div class="invalid-feedback">Sorry, that username's taken. Try another?</div>
+        {{ end }}
+        </div>
+    </div>
+    <div class="col-12">
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </div>
+</form>
+
