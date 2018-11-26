@@ -1,5 +1,16 @@
 
 <div class="bs-docs-section">
+
+    <div class="row">
+        <div class="col-lg-12">
+            <form enctype="multipart/form-data" method="post" action="{{ urlfor "FileController.Upload" }}">
+                <input type="hidden" name="dir" value="{{ .current }}">
+                <input type="file" name="uploadname" />
+                <input type="submit">
+            </form>
+        </div>
+    </div>
+
     <div class="row">
         <div class="col-lg-12">
 

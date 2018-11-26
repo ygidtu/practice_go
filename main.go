@@ -28,7 +28,7 @@ func config() {
 	beego.BConfig.WebConfig.XSRFKey = "download"
 	beego.BConfig.WebConfig.XSRFExpire = 3600
 
-	// models.UpdateDatabase()
+	go models.UpdateDatabase()
 }
 
 func main() {
@@ -37,7 +37,7 @@ func main() {
 
 	if len(os.Args) > 1 {
 		flag.Parse()
-		models.CreateUser(*user, *password)	
+		models.CreateUser(*user, *password)
 	} else {
 		config()
 		beego.Run()

@@ -1,12 +1,12 @@
 package controllers
 
 import (
-	"log"
 	"beego_netdisk/models"
 	"html/template"
-	"strconv"
-	"math/big"
+	"log"
 	"os"
+	"path/filepath"
+	"strconv"
 
 	"github.com/astaxie/beego"
 )
@@ -32,7 +32,13 @@ func (c *MainController) Get() {
 	if ok == nil {
 		c.Ctx.Redirect(302, "/login")
 	} else if true {
+		current := c.Input().Get("page")
 
+		if current == "" {
+			current = "0"
+		}
+
+		c.Data["current"] = current
 		// set page
 		c.TplName = "base.html"
 		c.Layout = "base.html"
@@ -67,8 +73,12 @@ func (c *UserController) Login() {
 		c.Ctx.Redirect(302, "/")
 	}
 
-	c.Data["json"] = models.LoginError{ status }
-	c.ServeJSON()
+	c.Data["Error"] = status
+	c.TplName = "base.html"
+	c.Layout = "base.html"
+	c.LayoutSections = make(map[string]string)
+	c.LayoutSections["PageContent"] = "login.html"
+	c.Render()
 }
 
 // logout page
@@ -89,26 +99,20 @@ func (c *FileController) Prepare() {
 
 // delete function
 func (c *FileController) Delete() {
-	file_id := c.Input().Get("file_id")
+	fileId := c.Input().Get("file_id")
 
-	if file_id != "" {
-		file_id_int, err := strconv.Atoi(file_id)
+	if fileId != "" {
 
-		if err != nil {
-			log.Fatal(err)
-			return 
-		}
-
-		file := models.GetFile(file_id_int)
+		file := models.GetFile(fileId)
 		mode, _ := os.Stat(file)
-	
+
 		if mode.IsDir() {
 			os.RemoveAll(file)
 		} else {
 			os.Remove(file)
 		}
-	
-		models.DeleteFile(file_id_int)
+
+		models.DeleteFile(fileId)
 	}
 }
 
@@ -120,14 +124,7 @@ func (c *FileController) Get() {
 		c.Abort("404")
 	}
 
-	file_id, err := strconv.Atoi(file)
-
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	
-	responseFile := models.GetFile(file_id)
+	responseFile := models.GetFile(file)
 
 	if responseFile == "" {
 		c.Abort("404")
@@ -136,16 +133,55 @@ func (c *FileController) Get() {
 	c.Ctx.Output.Download(responseFile)
 }
 
+// create new directory
+func (c *FileController) Create() {
+	fileName := c.GetString("file")
+	directory := c.GetString("dir")
+
+	if directory == "" {
+		directory = "./Downloads"
+	}
+
+	directory = models.GetFile(directory)
+
+	fullPath := filepath.Join(directory, fileName)
+
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		// path/to/whatever does not exist
+		os.MkdirAll(fullPath, os.ModePerm)
+	}
+
+	go models.InsertRecord(fullPath)
+}
+
+// upload file
+func (c *FileController) Upload() {
+	directory := c.GetString("dir")
+
+	f, h, err := c.GetFile("uploadname")
+	if err != nil {
+		log.Fatal("getfile err ", err)
+	}
+	defer f.Close()
+
+	fullPath := filepath.Join(models.GetFile(directory), h.Filename)
+	c.SaveToFile("uploadname", fullPath)
+
+	go models.InsertRecord(fullPath)
+
+	c.Ctx.Redirect(302, beego.URLFor("MainController.Get", ":page", directory))
+}
+
 // retrive file list
 func (c *FileController) List() {
-	file_id := models.Hash("./Downloads")
+	fileId := strconv.Itoa(models.Hash("./Downloads"))
 	file := c.Input().Get("file_id")
 
 	if file != "" {
-		file_id = file
+		fileId = file
 	}
 
-	c.Data["json"] = models.GetDir(file_id)
+	c.Data["json"] = models.GetDir(fileId)
 
 	c.ServeJSON()
 }
