@@ -1,56 +1,316 @@
 
-<div class="bs-docs-section">
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <link rel="stylesheet" href="/static_/css/bootswatch_litera.min.css">
+        <link rel="stylesheet"href="/static_/css/datatables.min.css">
+        <link rel="stylesheet"href="/static_/css/custom.css">
+    </head>
+    <body>
+        <div class="navbar navbar-expand-lg fixed-top navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="#">网盘</a>
+                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarColor01" aria-controls="navbarColor01" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
 
-    <div class="row">
-        <div class="col-lg-12">
-            <form enctype="multipart/form-data" method="post" action="{{ urlfor "FileController.Upload" }}">
-                <input type="hidden" name="dir" value="{{ .current }}">
-                <input type="file" name="uploadname" />
-                <input type="submit">
-            </form>
+                <div class="collapse navbar-collapse" id="navbarColor01">
+                    <ul class="navbar-nav mr-auto">
+                        <li class="nav-item active">
+                            <a class="nav-link" href="/">Home <span class="sr-only">(current)</span></a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/logout">Logout</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
         </div>
-    </div>
 
-    <div class="row">
-        <div class="col-lg-12">
+        <div class="container">
+            {{ if eq .Mode "login" }}
+            <br>
+                {{ if .Error }}
+                <div class="alert alert-dismissible alert-danger">
+                    <button type="button" class="close" data-dismiss="alert">&times;</button>
+                    <strong>Oh snap!</strong> <a href="#" class="alert-link">Change a few things up</a> and try submitting again.
+                </div>
+                {{ end }}
 
-            上一页
+                <form action="/login" method="post">
 
-            <a href="back/current">上一页</a>
+                    <div class="col-12">
+                        <div class="form-group">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="username" name="username" placeholder="username" value="admin">
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-group {{if .Error}}has-danger{{ end }}">
+                            <label for="passwd">Password</label>
+                            <input type="password" class="form-control" id="password" name="password" placeholder="Password" value="downloadJoy">
+                            {{ if .Error }}
+                            <div class="invalid-feedback">Sorry, that username's taken. Try another?</div>
+                            {{ end }}
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">Submit</button>
+                    </div>
+                </form>
 
-            <hr >
+            {{ else }}
 
-            <table class="table table-hover table-advanced table-boraded" id="example">
-                <thead>
-                    <th>文件夹名称</th>
-                    <th>删除</th>
-                </thead>
-                <tbody>
+                <div class="page-header">
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <h1>
+                                File info
+                            </h1>
+                        </div>
+                    </div>
+                </div>
+                <div class="bs-docs-section">
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <div class="page-header">
+                                <ol class="breadcrumb" id="navigation">
+                                    <li v-for="(item, index) in items" class="breadcrumb-item" v-bind:class="{active: item.active}">
+                                        <a v-if="item.href != ''" v-bind:href="[item.href]" v-on:click="removeNav(index)">[[item.text]]</a>
+                                        <font v-else>[[item.text]]</font>
 
+                                    </li>
+                                </ol>
+                            </div>
+                            <div class="bs-component">
 
-                </tbody>
-            </table>
+                                <div class="row" id="anchor">
+                                </div>
 
-            <hr />
-            <table class="table table-hover table-advanced table-boraded" id="example">
-                <thead>
-                    <th>文件夹名称</th>
-                    <th>大小</th>
-                    <th>下载</th>
-                    <th>删除</th>
-                </thead>
-                <tbody>
+                                <table id="table" class="table table-hover table-striped">
+                                    <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Size</th>
+                                        <th>Is Dir</th>
+                                        <th>Delete</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody @click="reload($event)">
 
-                </tbody>
-            </table>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            {{ end }}
         </div>
-    </div>
-</div>
+    </body>
 
+    <!-- 导入顺序不能乱，因为后续的js依赖于前一个，顺序反了会到时功能失效 -->
+    <!-- 开发环境版本，包含了有帮助的命令行警告 -->
+    <script src="/static_/js/jquery-3.3.1.min.js"></script>
+    <script src="/static_/js/jquery-ui.min.js"></script>
+    <script src="/static_/js/bootstrap.min.js"></script>
 
+    {{ if ne .Mode "login" }}
+    <script src="/static_/js/datatables.min.js"></script>
+    <script src="/static_/js/vue.min.js"></script>
+    <script type="text/javascript">
+        jQuery.fn.dataTable.ext.type.order['file-size-pre'] = function ( data ) {
+            let matches = data.match( /^(\d+(?:\.\d+)?)\s*([a-z]+)/i );
+            let multipliers = {
+                b:  1,
+                bytes: 1,
+                kb: 1000,
+                kib: 1024,
+                mb: 1000000,
+                mib: 1048576,
+                gb: 1000000000,
+                gib: 1073741824,
+                tb: 1000000000000,
+                tib: 1099511627776,
+                pb: 1000000000000000,
+                pib: 1125899906842624
+            };
 
-<script>
-    $(document).ready(function() {
-        $('table').DataTable();
-    } );
-</script>
+            if (matches) {
+                let multiplier = multipliers[matches[2].toLowerCase()];
+                return parseFloat( matches[1] ) * multiplier;
+            } else {
+                return -1;
+            }
+        };
+    </script>
+    <script type="text/javascript">
+
+        function destroyTable(tableId) {
+            if ($.fn.DataTable.isDataTable("#" + tableId)) {
+                $('#' + tableId).DataTable().clear().destroy();
+            }
+        }
+
+        function createTable(tableId, url) {
+            destroyTable(tableId);
+            $("#" + tableId).DataTable( {
+                "ajax": url,
+                "order": [[ 2, "desc" ]],
+                "columns": [
+                    {
+                        "render": function (data, type, row) {
+                            if (row["is_dir"]) {
+                                return `<a href="#" data-href="${row["path"]}">${row["name"]}</a>`
+                            } else {
+                                return row["name"]
+                            }
+                        }
+                    },
+                    {
+                        "type": "file-size",
+                        "render": function (data, type, row) {
+                            const units = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+
+                            function niceBytes(x){
+                                let l = 0, n = parseInt(x, 10) || 0;
+                                while(n >= 1024 && ++l)
+                                    n = n/1024;
+
+                                //include a decimal point and a tenths-place digit if presenting
+                                //less than ten of KB or greater units
+                                return(n.toFixed(n < 10 && l > 0 ? 1 : 0) + ' ' + units[l]);
+                            }
+
+                            return niceBytes(row["size"])
+                        }
+                    },
+                    {
+                        "render": function (data, type, row) {
+                            if (row["is_dir"]) {
+                                return `<a role="button" class="btn btn-outline-primary"  role="button" class="btn btn-outline-danger"  data-href="api/compress?${$.param({"path": row["path"]})}">压缩</a>`
+                            } else {
+                                return `<a role="button" class="btn btn-outline-info"  role="button" class="btn btn-outline-info" href="api/download?${$.param({"path": row["path"]})}">下载</a>`
+                            }
+
+                        }
+                    },
+                    {
+                        "render": function (data, type, row) {
+                            return `<a role="button" class="btn btn-outline-danger" data-href="api/delete?${$.param({"path": row["path"]})}">删除</a>`
+                        }
+                    }
+                ]
+            } );
+        }
+
+        let breadcrumb = new Vue({
+            el: "#navigation",
+            data: {
+                items: [
+                    {"text": "Home", "href": "#", active: true, path: ""}
+                ]
+            },
+            delimiters: ['[[',']]'],
+            methods: {
+                removeNav: function (index) {
+                    console.log(this.items[index]);
+                    createTable(tb.$el.id, `${tb.url}?${$.param({"path": this.items[index].path})}`);
+
+                    this.items = this.items.slice(0, index + 1);
+                    if (index > 0) {
+                        this.items[index].active = true;
+                        this.items[index].href = '';
+                    }
+                }
+            }
+        });
+
+        let tb = new Vue({
+            el: "#table",
+            data: {
+                url: "api/list",
+                bread: breadcrumb,
+                items: [
+                    {"text": "Home", "href": "#", "active": true, "path": ""}
+                ]
+            },
+            methods: {
+                reload: function (event) {
+                    let target = event.target;
+                    let href = target.getAttribute("data-href");
+
+                    if (target.tagName === "A") {
+
+                        if (target.classList.contains("btn-outline-danger")) {
+                            let yes = confirm(`确定删除?`);
+                            if (yes) {
+                                $.ajax({
+                                    url: href
+                                }).fail(function (jqXHR, textStatus, error) {
+                                    $("#anchor").append(
+                                        `<div class="alert alert-dismissible alert-danger">
+                                            <button type="button" class="close" data-dismiss="alert">&times;</button>
+                                            <strong>Oh snap!</strong> ${error} - ${jqXHR.responseText}.
+                                           </div>
+                                        `
+                                    )
+                                });
+                            }
+                        } else if (target.classList.contains("btn-outline-primary")) {
+                            $.ajax({
+                                url: href
+                            }).fail(function (jqXHR, textStatus, error) {
+                                let msg = JSON.parse(jqXHR.responseText);
+
+                                $("#anchor").append(
+                                    `<div class="alert alert-dismissible alert-danger">
+                                        <button type="button" class="close" data-dismiss="alert">&times;</button>
+                                        <strong>Oh snap!</strong> ${error} - ${msg["Message"]}.
+                                       </div>
+                                    `
+                                )
+                            }).done(function (data, textStatus, jqXHR) {
+                                    let msg = JSON.parse(jqXHR.responseText);
+
+                                    $("#anchor").append(
+                                        `<div class="alert alert-dismissible alert-success">
+                                            <button type="button" class="close" data-dismiss="alert">&times;</button>
+                                            <strong>Ok!</strong> ${msg["Message"]}.
+                                           </div>
+                                        `
+                                    )
+                            });
+                        } else if (target.classList.length === 0) {
+
+                            createTable(this.$el.id, `${this.url}?${$.param({"path": href})}`);
+
+                            this.bread.items.forEach(function (item) {
+                                item.active = false;
+
+                                if (item.href === "") {
+                                    item.href = "#"
+                                }
+                            });
+
+                            this.bread.items.push({
+                                "text": target.textContent,
+                                "href": "",
+                                "active": true,
+                                "path": href
+                            });
+                        }
+                    }
+                }
+            },
+            mounted: function () {
+                createTable(this.$el.id, this.url.toString());
+            }
+        });
+    </script>
+    {{ end }}
+
+</html>
+
