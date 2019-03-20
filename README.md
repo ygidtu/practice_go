@@ -11,3 +11,5 @@
 - [gin-sessions](https://github.com/gin-contrib/sessions)：gin的session插件，用户登录操作
 - [archiver](https://github.com/mholt/archiver)：压缩文件，压缩文件夹，方便下载文件夹。不过当然不是边压缩边下载，那么复杂干嘛。
 - [go-rice](https://github.com/GeertJohan/go.rice)：打包静态文件，便于编译成统一的二进制
+
+基本上不会在这个基础上搞了，反而有个私人在玩的东西，会上心在做一定程度的修改和编写
