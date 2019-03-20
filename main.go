@@ -15,22 +15,6 @@ import (
 	"path/filepath"
 )
 
-/*
-TODO
-2019.3.17 添加视频和页面的爬取功能
-*/
-
-func MiddleDB(mongo *MongoDB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		err := mongo.GetCollection()
-		if err != nil {
-			c.Abort()
-		} else {
-			c.Set("mongo", mongo)
-			c.Next()
-		}
-	}
-}
 
 func main() {
 
@@ -58,7 +42,6 @@ func main() {
 	}
 
 	gin.SetMode(gin.TestMode)
-
 	//db := &MongoDB{URI: parser.URI}
 
 	router := gin.Default()
