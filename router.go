@@ -171,6 +171,27 @@ func GetFileContentType(out *os.File) (string, error) {
 	return contentType, nil
 }
 
+func GetFileContentTypePath(path string) (string, error) {
+	if stat, err := os.Stat(path); os.IsNotExist(err) {
+		return "", err
+	} else {
+		if stat.IsDir() {
+			return "dir", nil
+		} else {
+
+			r, err := os.Open(path)
+			if r != nil {
+				defer r.Close()
+			}
+			if err != nil {
+				return "", err
+			}
+
+			return GetFileContentType(r)
+		}
+	}
+}
+
 /*
 Decode base64 encoded path
 */
@@ -299,6 +320,10 @@ func deleteFile(ctx *gin.Context) {
 		return
 	}
 
+	if ctx.MustGet("delete").(bool) {
+		return
+	}
+
 	path := getVar(ctx, "path")
 	if root, ok := ctx.Get("root"); !ok {
 		ctx.JSON(http.StatusBadRequest, gin.H{"Message": "do not have root path"})
@@ -329,49 +354,62 @@ func deleteFile(ctx *gin.Context) {
 /*
 List files
 */
-func listFile(ctx *gin.Context) {
-	session := sessions.Default(ctx)
+func listFile(c *gin.Context) {
+	session := sessions.Default(c)
 
 	if login := session.Get("login"); login == nil || !login.(bool) {
-		ctx.JSON(http.StatusBadRequest, gin.H{"Message": "login first"})
+		c.JSON(http.StatusBadRequest, gin.H{"Message": "login first"})
 		return
 	}
 
-	path := getVar(ctx, "path")
+	disableDelete := c.MustGet("delete").(bool)
+
+	path := getVar(c, "path")
 
 	type Info struct {
-		Name  string `json:"name"`
-		Path  string `json:"path"`
-		IsDir bool   `json:"is_dir"`
-		Size  int64  `json:"size"`
+		Name          string `json:"name"`
+		Path          string `json:"path"`
+		IsDir         bool   `json:"is_dir"`
+		Size          int64  `json:"size"`
+		Type          string `json:"type"`
+		DisableDelete bool   `json:"disable_delete"`
 	}
 
 	info := make([]*Info, 0, 0)
 
 	// use relative path instead of absolute path
-	root := ctx.MustGet("root").(string)
+	root := c.MustGet("root").(string)
 
 	if files, err := ioutil.ReadDir(path); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"Message": err})
+		c.JSON(http.StatusBadRequest, gin.H{"Message": err})
 		return
 	} else {
 		for _, f := range files {
 			tempPath := strings.Replace(path, root, "", -1)
+
+			contentType, err := GetFileContentTypePath(filepath.Join(path, f.Name()))
+
+			if err != nil {
+				contentType = err.Error()
+			}
+
 			info = append(info, &Info{
-				Name:  f.Name(),
-				Path:  base64.StdEncoding.EncodeToString([]byte(filepath.Join(tempPath, f.Name()))),
-				IsDir: f.IsDir(),
-				Size:  f.Size(),
+				Name:          f.Name(),
+				Path:          base64.StdEncoding.EncodeToString([]byte(filepath.Join(tempPath, f.Name()))),
+				IsDir:         f.IsDir(),
+				Size:          f.Size(),
+				Type:          contentType,
+				DisableDelete: disableDelete,
 			})
 		}
 	}
-	ctx.JSON(http.StatusOK, gin.H{"data": info, "count": len(info)})
+	c.JSON(http.StatusOK, gin.H{"data": info, "count": len(info)})
 }
 
 /*
 Middleware to check path
 */
-func pathMiddleware(root string) gin.HandlerFunc {
+func pathMiddleware(root string, disabelDelete bool) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 
@@ -380,6 +418,7 @@ func pathMiddleware(root string) gin.HandlerFunc {
 
 		c.Set("path", filepath.Join(root, path))
 		c.Set("root", root)
+		c.Set("delete", disabelDelete)
 
 		c.Next()
 	}
@@ -396,7 +435,7 @@ func loginMiddleware(username, password string) gin.HandlerFunc {
 	}
 }
 
-func manageRoute(router *gin.Engine, root, username, password string) {
+func manageRoute(router *gin.Engine, root, username, password string, disabelDelete bool) {
 	router.GET("/", mainPage)
 	r := router.Group("/")
 
@@ -408,12 +447,13 @@ func manageRoute(router *gin.Engine, root, username, password string) {
 
 	router.GET("/logout", logout)
 	api := router.Group("/api")
-	api.Use(pathMiddleware(root))
+	api.Use(pathMiddleware(root, disabelDelete))
 	{
 		api.GET("/download", downloadFile)
 		api.GET("/compress", compressFile)
 		api.GET("/delete", deleteFile)
 		api.GET("/list", listFile)
+		api.Static("/file", root)
 	}
 
 }

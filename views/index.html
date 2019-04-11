@@ -89,19 +89,30 @@
                                 <div class="row" id="anchor">
                                 </div>
 
-                                <table id="table" class="table table-hover table-striped">
-                                    <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Size</th>
-                                        <th>Is Dir</th>
-                                        <th>Delete</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody @click="reload($event)">
+                                <div class="row">
+                                    <div class="col-lg-12">
+                                        <table id="table" class="table table-hover table-striped">
+                                            <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Size</th>
+                                                <th>Is Dir</th>
+                                                <th>Delete</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody @click="reload($event)">
 
-                                    </tbody>
-                                </table>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <hr>
+
+                                <div class="row" >
+                                    <div class="col-lg-12" id="billboard">
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -154,6 +165,13 @@
             }
         }
 
+        function b64DecodeUnicode(str) {
+            // Going backwards: from bytestream, to percent-encoding, to original string.
+            return decodeURIComponent(atob(str).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+        }
+
         function createTable(tableId, url) {
             destroyTable(tableId);
             $("#" + tableId).DataTable( {
@@ -164,6 +182,8 @@
                         "render": function (data, type, row) {
                             if (row["is_dir"]) {
                                 return `<a href="#" data-href="${row["path"]}">${row["name"]}</a>`
+                            } else if (row["type"].startsWith("text/html") || row["type"].startsWith("image") || row["type"].startsWith("video")) {
+                                return `<a href="#" class="show" data-href="${row["path"]}">${row["name"]}</a>`
                             } else {
                                 return row["name"]
                             }
@@ -199,7 +219,14 @@
                     },
                     {
                         "render": function (data, type, row) {
-                            return `<a role="button" class="btn btn-outline-danger" data-href="api/delete?${$.param({"path": row["path"]})}">删除</a>`
+
+                            if (row["disable_delete"]) {
+                                return `<a role="button" class="btn btn-outline-danger disabled" data-href="api/delete?${$.param({"path": row["path"]})}">删除</a>`
+                            } else {
+                                return `<a role="button" class="btn btn-outline-danger" data-href="api/delete?${$.param({"path": row["path"]})}">删除</a>`
+                            }
+                            
+                            
                         }
                     }
                 ]
@@ -242,7 +269,9 @@
                     let target = event.target;
                     let href = target.getAttribute("data-href");
 
-                    if (target.tagName === "A") {
+                    if (target.classList.contains("show")) {
+                        this.show(event)
+                    } else if (target.tagName === "A") {
 
                         if (target.classList.contains("btn-outline-danger")) {
                             let yes = confirm(`确定删除?`);
@@ -283,10 +312,13 @@
                                         `
                                     )
                             });
-                        } else if (target.classList.length === 0) {
+                        }
 
+                        if (!event.target.classList.contains("btn-outline-info")) {
                             createTable(this.$el.id, `${this.url}?${$.param({"path": href})}`);
+                        }
 
+                        if (event.target.length === 0) {
                             this.bread.items.forEach(function (item) {
                                 item.active = false;
 
@@ -303,6 +335,24 @@
                             });
                         }
                     }
+                },
+                
+                show: function(event) {
+
+                    $("#billboard").empty();
+
+                    let href = event.target.getAttribute("data-href");
+
+                    let api = `/api/file/${b64DecodeUnicode(href)}`;
+
+                    $("#billboard").append(`
+                        <div class="alert alert-dismissible alert-secondary">
+                            <button type="button" class="close" data-dismiss="alert">&times;</button>
+                            <h4>${event.target.innerText}</h4>
+                            <hr >
+                            <embed src="${api}" width="100%" height="100%" >
+                        </div>
+                    `)
                 }
             },
             mounted: function () {

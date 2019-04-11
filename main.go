@@ -2,37 +2,40 @@ package main
 
 import (
 	"fmt"
-	"github.com/GeertJohan/go.rice"
-	"github.com/foolin/gin-template/supports/gorice"
 	"os"
 
+	"github.com/GeertJohan/go.rice"
+	"github.com/foolin/gin-template/supports/gorice"
+
 	// "github.com/GeertJohan/go.rice"
+	"log"
+	"path/filepath"
+
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/voxelbrain/goptions"
-	"log"
-	"path/filepath"
 )
-
 
 func main() {
 
 	parser := struct {
-		Host     string        `goptions:"-h, --host, description='host'"`
-		Port     int           `goptions:"-p, --port, description='port'"`
-		Dir      string        `goptions:"-d, --dir, description='File directory'"`
-		Username string        `goptions:"--user, description='Username'"`
-		Password string        `goptions:"--passwd, description='Password'"`
-		Help     goptions.Help `goptions:"-h, --help, description='Show this help'"`
+		Host          string        `goptions:"--host, description='host'"`
+		Port          int           `goptions:"--port, description='port'"`
+		Dir           string        `goptions:"--dir, description='File directory'"`
+		Username      string        `goptions:"--user, description='Username'"`
+		Password      string        `goptions:"--passwd, description='Password'"`
+		DisableDelete bool          `goptions:"--disable-delete, description='Disable delete button'"`
+		Help          goptions.Help `goptions:"-h, --help, description='Show this help'"`
 
 		goptions.Verbs
 	}{
-		Host:     "127.0.0.1",
-		Port:     5000,
-		Dir:      filepath.Dir(os.Args[0]),
-		Username: "admin",
-		Password: "admin",
+		Host:          "127.0.0.1",
+		Port:          5000,
+		Dir:           filepath.Dir(os.Args[0]),
+		Username:      "admin",
+		Password:      "admin",
+		DisableDelete: false,
 	}
 	goptions.ParseAndFail(&parser)
 
@@ -63,7 +66,7 @@ func main() {
 	// provide file download service
 	router.Static("/files", DirFullPath)
 
-	manageRoute(router, DirFullPath, parser.Username, parser.Password)
+	manageRoute(router, DirFullPath, parser.Username, parser.Password, parser.DisableDelete)
 
 	err = router.Run(fmt.Sprintf("%s:%d", parser.Host, parser.Port))
 
