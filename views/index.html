@@ -50,7 +50,7 @@
                     <div class="col-12">
                         <div class="form-group {{if .Error}}has-danger{{ end }}">
                             <label for="passwd">Password</label>
-                            <input type="password" class="form-control" id="password" name="password" placeholder="Password" value="downloadJoy">
+                            <input type="password" class="form-control" id="password" name="password" placeholder="Password">
                             {{ if .Error }}
                             <div class="invalid-feedback">Sorry, that username's taken. Try another?</div>
                             {{ end }}
@@ -80,7 +80,6 @@
                                     <li v-for="(item, index) in items" class="breadcrumb-item" v-bind:class="{active: item.active}">
                                         <a v-if="item.href != ''" v-bind:href="[item.href]" v-on:click="removeNav(index)">[[item.text]]</a>
                                         <font v-else>[[item.text]]</font>
-
                                     </li>
                                 </ol>
                             </div>
@@ -318,7 +317,7 @@
                             createTable(this.$el.id, `${this.url}?${$.param({"path": href})}`);
                         }
 
-                        if (event.target.length === 0) {
+                        if (event.target.classList.length === 0) {
                             this.bread.items.forEach(function (item) {
                                 item.active = false;
 
@@ -336,7 +335,7 @@
                         }
                     }
                 },
-                
+
                 show: function(event) {
 
                     $("#billboard").empty();
