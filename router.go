@@ -2,15 +2,16 @@ package main
 
 import (
 	"fmt"
-	rice "github.com/GeertJohan/go.rice"
-	"github.com/foolin/gin-template/supports/gorice"
-	"github.com/gin-contrib/sessions/cookie"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	rice "github.com/GeertJohan/go.rice"
+	"github.com/foolin/gin-template/supports/gorice"
+	"github.com/gin-contrib/sessions/cookie"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -330,7 +331,7 @@ func manageRoute(router *gin.Engine, root, username, password string, disableDel
 	router.Use(sessions.Sessions("session", store))
 
 	// servers other static files
-	staticBox := rice.MustFindBox("./views/static")
+	staticBox := rice.MustFindBox("./views/")
 	router.StaticFS("/static", staticBox.HTTPBox())
 
 	router.Static("/api/preview", root)
