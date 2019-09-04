@@ -1,0 +1,42 @@
+{
+    "data": [
+      {
+        "name": "_720P_1500K_232963651.mp4",
+        "path": "_720P_1500K_232963651.mp4",
+        "is_dir": false,
+        "size": 17616118,
+        "type": "video/mp4"
+      },
+      {
+        "name": "src",
+        "path": "src",
+        "is_dir": true,
+        "size": 160,
+        "type": "dir"
+      },
+      {
+        "name": "归档 2.zip",
+        "path": "归档 2.zip",
+        "is_dir": false,
+        "size": 9832394,
+        "type": "application/zip"
+      },
+      {
+        "name": "归档.zip",
+        "path": "归档.zip",
+        "is_dir": false,
+        "size": 1980473,
+        "type": "application/zip"
+      },
+      {
+        "name": "barplots.pdf",
+        "path": "/Users/zhangyiming/go/src/JoyStuff/downloads/barplots.pdf",
+        "is_dir": false,
+        "size": 1980473,
+        "type": "application/pdf"
+      }
+    ],
+    "current": [
+        "view"
+    ]
+}
