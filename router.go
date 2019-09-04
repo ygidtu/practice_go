@@ -1,21 +1,20 @@
 package main
 
 import (
-	"encoding/base64"
 	"fmt"
+	rice "github.com/GeertJohan/go.rice"
+	"github.com/foolin/gin-template/supports/gorice"
+	"github.com/gin-contrib/sessions/cookie"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/mholt/archiver"
-	"github.com/pkg/errors"
 )
 
 /*
@@ -45,7 +44,7 @@ func mainPage(ctx *gin.Context) {
 	if login == nil || !login.(bool) {
 		ctx.Redirect(http.StatusFound, "/login")
 	} else {
-		ctx.HTML(http.StatusOK, "index.html", gin.H{"Mode": "index"})
+		ctx.HTML(http.StatusOK, "index.html", gin.H{})
 	}
 }
 
@@ -65,7 +64,7 @@ func loginGet(ctx *gin.Context) {
 		err = false
 	}
 
-	ctx.HTML(http.StatusOK, "index.html", gin.H{"Error": err.(bool), "Mode": "login"})
+	ctx.HTML(http.StatusOK, "login.html", gin.H{"Error": err.(bool)})
 }
 
 /*
@@ -106,54 +105,6 @@ func logout(context *gin.Context) {
 	context.Redirect(http.StatusFound, "/login")
 }
 
-/*
-The only API of mongoDB
-*/
-//func filesAPI(ctx *gin.Context) {
-//	session := sessions.Default(ctx)
-//
-//	login := session.Get("login")
-//
-//	if login == nil || !login.(bool) {
-//		ctx.JSON(http.StatusBadRequest, gin.H{"message": "Please login first"})
-//		return
-//	} else {
-//		db, ok := ctx.Keys["mongo"].(*MongoDB)
-//
-//		start, err := strconv.Atoi(ctx.DefaultQuery("start", "0"))
-//
-//		if err != nil {
-//			ctx.JSON(http.StatusBadRequest, gin.H{"message": fmt.Sprintf("Start format error, %s", err)})
-//			return
-//		}
-//
-//		length, err := strconv.Atoi(ctx.DefaultQuery("length", "10"))
-//		if err != nil {
-//			ctx.JSON(http.StatusBadRequest, gin.H{"message": fmt.Sprintf("Start format error, %s", err)})
-//			return
-//		}
-//
-//		if !ok {
-//			ctx.JSON(http.StatusBadRequest, gin.H{"message": ok})
-//			return
-//		}
-//
-//		data, err := db.Paginate(start, length)
-//
-//		if err != nil {
-//			ctx.JSON(http.StatusBadRequest, gin.H{"message": err})
-//			return
-//		}
-//
-//		ctx.JSON(http.StatusOK, gin.H{
-//			"data":   data,
-//			"total":  db.Total,
-//			"start":  start,
-//			"length": length,
-//		})
-//	}
-//}
-
 func GetFileContentType(out *os.File) (string, error) {
 
 	// Only the first 512 bytes are used to sniff the content type.
@@ -193,41 +144,10 @@ func GetFileContentTypePath(path string) (string, error) {
 }
 
 /*
-Decode base64 encoded path
-*/
-func decodePath(path string) (string, error) {
-
-	if path == "" {
-		return "", errors.New("Path required")
-	}
-
-	pathBytes, err := base64.StdEncoding.DecodeString(path)
-
-	if err != nil {
-		if _, err := os.Stat(path); !os.IsNotExist(err) {
-			return path, nil
-		} else {
-			return "", errors.New(fmt.Sprintf("Wrong encoding, %s", err))
-		}
-	}
-
-	path = string(pathBytes)
-
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		return path, nil
-	}
-
-	return path, errors.New(fmt.Sprintf("%s not exists", path))
-}
-
-/*
 Download file
 */
 func downloadFile(ctx *gin.Context) {
 	path := getVar(ctx, "path")
-
-	log.Println(path)
-
 	stat, err := os.Stat(path)
 	if os.IsNotExist(err) {
 		if err != nil {
@@ -235,48 +155,10 @@ func downloadFile(ctx *gin.Context) {
 			return
 		}
 	} else if stat.IsDir() {
-		//ctx.Redirect(http.StatusFound, fmt.Sprintf("/api/compress?path=%s", path))
 		return
 	}
 
-	contentRange := ctx.GetHeader("Content-Range")
-
-	reader, err := os.Open(path)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"message": fmt.Sprintf("Wrong path, %s", err)})
-		return
-	}
-	defer reader.Close()
-
-	contentType, _ := GetFileContentType(reader)
-	stat, _ = reader.Stat()
-
-	extraHeaders := map[string]string{
-		"Content-Disposition": fmt.Sprintf(`attachment; filename="%s"`, filepath.Base(reader.Name())),
-	}
-
-	var start int64 = 0
-	re := regexp.MustCompile(`bytes\s+(%d+)-(%d+)?`)
-	if contentRange != "" {
-		matched := re.FindStringSubmatch(contentRange)
-
-		if len(matched) > 1 {
-			start, err = strconv.ParseInt(matched[0], 10, 64)
-
-			if err != nil {
-				start = 0
-			}
-		}
-	}
-
-	_, err = reader.Seek(start, 0)
-
-	if err != nil {
-		reader, _ = os.Open(path)
-		defer reader.Close()
-	}
-
-	ctx.DataFromReader(http.StatusOK, stat.Size()-start, contentType, reader, extraHeaders)
+	ctx.FileAttachment(path, filepath.Base(path))
 }
 
 /*
@@ -395,7 +277,7 @@ func listFile(c *gin.Context) {
 
 			info = append(info, &Info{
 				Name:          f.Name(),
-				Path:          base64.StdEncoding.EncodeToString([]byte(filepath.Join(tempPath, f.Name()))),
+				Path:          filepath.Join(tempPath, f.Name()),
 				IsDir:         f.IsDir(),
 				Size:          f.Size(),
 				Type:          contentType,
@@ -403,22 +285,28 @@ func listFile(c *gin.Context) {
 			})
 		}
 	}
-	c.JSON(http.StatusOK, gin.H{"data": info, "count": len(info)})
+	c.JSON(
+		http.StatusOK,
+		gin.H{
+			"data":    info,
+			"count":   len(info),
+			"current": strings.Replace(path, root, "", -1),
+		},
+	)
 }
 
 /*
 Middleware to check path
 */
-func pathMiddleware(root string, disabelDelete bool) gin.HandlerFunc {
+func pathMiddleware(root string, disableDelete bool) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 
 		path := c.Query("path")
-		path, _ = decodePath(path)
 
 		c.Set("path", filepath.Join(root, path))
 		c.Set("root", root)
-		c.Set("delete", disabelDelete)
+		c.Set("delete", disableDelete)
 
 		c.Next()
 	}
@@ -435,7 +323,21 @@ func loginMiddleware(username, password string) gin.HandlerFunc {
 	}
 }
 
-func manageRoute(router *gin.Engine, root, username, password string, disabelDelete bool) {
+func manageRoute(router *gin.Engine, root, username, password string, disableDelete bool) {
+
+	store := cookie.NewStore([]byte("secret"))
+	store.Options(sessions.Options{MaxAge: 3600})
+	router.Use(sessions.Sessions("session", store))
+
+	// servers other static files
+	staticBox := rice.MustFindBox("./views/static")
+	router.StaticFS("/static", staticBox.HTTPBox())
+
+	router.Static("/api/preview", root)
+
+	//new template engine
+	router.HTMLRender = gorice.New(rice.MustFindBox("views"))
+
 	router.GET("/", mainPage)
 	r := router.Group("/")
 
@@ -447,13 +349,12 @@ func manageRoute(router *gin.Engine, root, username, password string, disabelDel
 
 	router.GET("/logout", logout)
 	api := router.Group("/api")
-	api.Use(pathMiddleware(root, disabelDelete))
+	api.Use(pathMiddleware(root, disableDelete))
 	{
 		api.GET("/download", downloadFile)
 		api.GET("/compress", compressFile)
 		api.GET("/delete", deleteFile)
 		api.GET("/list", listFile)
-		api.Static("/file", root)
 	}
 
 }

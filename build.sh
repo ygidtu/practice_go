@@ -1,5 +1,11 @@
 #!/bin/bash
 
+cd frontend
+
+npm run build
+
+cd ..
+
 mkdir -p builds
 
 rice embed-go
